@@ -1,0 +1,4 @@
+screenshots/
+error_screenshots/
+*.log
+test*
