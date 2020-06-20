@@ -4,14 +4,10 @@ import random
 import time
 import sys
 import argparse
-
-from numba import jit, cuda
 import numpy as np
-
+from multiprocessing import Pool
 from datetime import timedelta
 import time
-
-from multiprocessing import Pool
 
 MIN_BET = 100
 MAX_BET = 10000
@@ -28,31 +24,27 @@ HORSE_RATE_RANGES = (
 PERCENAGE_FOR_BET = 0.1
 SECONDS_PER_RUN = 45
 
-def generateRandomRates():
-	rates = np.asarray([random.randint(*rate_range) for rate_range in HORSE_RATE_RANGES])
+def generateRandomRates() -> np.ndarray:
+	rates = np.asarray([
+		np.random.randint(row[0], row[1] + 1)
+		for row in HORSE_RATE_RANGES
+	])
+
 	rates.sort()
 
 	return rates
 
-# def getRewardFromRates(rates):
-# 	return [(1 / (rate + 1)) for rate in rates]
+def getWeightsFromRates(rates: np.ndarray) -> np.ndarray:
+	weights = np.asarray([(1 / (rate + 1))  for rate in rates])
 
-def getWeightsFromRates(rates):
-	rates = [(1 / (rate + 1))  for rate in rates]
-	total = sum(rates)
+	return weights / weights.sum()
 
-	return [(rate / total) for rate in rates]
+def getBetAmmount(balance: int):
+	return int(balance * PERCENAGE_FOR_BET)
 
-def getBetAmmount(balance):
-	bet = int(balance * PERCENAGE_FOR_BET)
-
-	return bet
-
-def getWinnerHorse(rates):
-	population = list(range(len(rates)))
+def getWinnerHorse(rates: np.ndarray) -> int:
 	weights = getWeightsFromRates(rates)
-
-	return random.choices(population, weights)[0]
+	return np.random.choice(rates.size, p=weights)
 
 MAX_FIRST_HORSE_WEIGHT = getWeightsFromRates([1, 5, 15, 15, 30, 30])[0]
 
@@ -60,7 +52,6 @@ def play_run(balance = 1000 , iterations = 1):
 	for i in range(iterations):
 
 		if balance <= 0:
-			# print(f'You run out of money in {i} iterations')
 			return 0
 
 		horseRates = generateRandomRates()
@@ -99,7 +90,19 @@ if __name__ == '__main__':
 	parser.add_argument('-i', '--iterations', type=int, default=100,
 		help='Number of iteration per run to do')
 
+	parser.add_argument('-t', '--test', action='store_true',
+		help='Do a test')
+
 	args = parser.parse_args(sys.argv[1:])
+
+	if args.test == True:
+		rates = generateRandomRates()
+		print(rates.tolist())
+
+		weights = getWeightsFromRates(rates)
+		print(weights.tolist())
+
+		exit()
 
 
 	total_balance = 0
@@ -119,8 +122,9 @@ if __name__ == '__main__':
 
 	elapsed_time = timedelta(seconds=end - start)
 
-	print(f'Time: {elapsed_time}')
-	print(f'Time per run: {elapsed_time / args.runs}')
+	print('Execution:')
+	print(f'\tTotal time   : {elapsed_time}')
+	print(f'\tTime per run : {elapsed_time / args.runs}\n')
 
 
 	expected_time = timedelta(seconds=args.iterations * SECONDS_PER_RUN)
@@ -130,9 +134,9 @@ if __name__ == '__main__':
 
 	average_balance_per_hour = int(average_balance / (expected_time.total_seconds() / 3600))
 
-	print('Average results:')
-	print(f'\tBalance  :  {average_balance:*>+,}')
-	print(f'\tBenefits :  {average_benefits:*>+,}')
-	print(f'\tTime     :  {expected_time}')
-	print(f'\t$ / Hour :  {average_balance_per_hour:*>+,}')
-	print(f'\tFail %   :  {total_fails / args.runs * 100 :.2f}')
+	print('Simulation average:')
+	print(f'\tBalance         :  $ {average_balance:*>+,}')
+	print(f'\tBenefits        :  $ {average_benefits:*>+,}')
+	print(f'\tBenefits / Hour :  $ {average_balance_per_hour:*>+,}\n')
+	print(f'\tFailed          :  {total_fails / args.runs * 100 :.4f}%\n')
+	print(f'\tTime            :  {expected_time}')
