@@ -8,107 +8,68 @@ import numpy as np
 from multiprocessing import Pool
 from datetime import timedelta
 import time
+import inspect
 
-MIN_BET = 100
-MAX_BET = 10000
+import utils
+import game
+from strategies import Strategies
 
-HORSE_RATE_RANGES = (
-	(1, 5),
-	(1, 5),
-	(6, 15),
-	(6, 15),
-	(16, 30),
-	(16, 30)
-)
 
-PERCENAGE_FOR_BET = 0.1
-SECONDS_PER_RUN = 45
+def play_run(balance, iterations, strategy):
 
-def generateRandomRates() -> np.ndarray:
-	rates = np.asarray([
-		np.random.randint(row[0], row[1] + 1)
-		for row in HORSE_RATE_RANGES
-	])
+	gameState = game.GameState(balance, strategy)
 
-	rates.sort()
-
-	return rates
-
-def getWeightsFromRates(rates: np.ndarray) -> np.ndarray:
-	weights = np.asarray([(1 / (rate + 1))  for rate in rates])
-
-	return weights / weights.sum()
-
-def getBetAmmount(balance: int):
-	return int(balance * PERCENAGE_FOR_BET)
-
-def getWinnerHorse(rates: np.ndarray) -> int:
-	weights = getWeightsFromRates(rates)
-	return np.random.choice(rates.size, p=weights)
-
-MAX_FIRST_HORSE_WEIGHT = getWeightsFromRates([1, 5, 15, 15, 30, 30])[0]
-
-def play_run(balance = 1000 , iterations = 1):
 	for i in range(iterations):
-
-		if balance <= 0:
+		try:
+			gameState.nextStep()
+		except game.NotEnoughMoney as e:
 			return 0
 
-		horseRates = generateRandomRates()
-		firstHorseRate = horseRates[0]
+	return gameState.getBalance()
 
-		weightRates = getWeightsFromRates(horseRates)
-		firstHorseWeight = weightRates[0]
-
-		sigma = firstHorseWeight / MAX_FIRST_HORSE_WEIGHT
-		betAmmount = int(balance * PERCENAGE_FOR_BET * sigma)
-
-		if betAmmount < MIN_BET:
-			betAmmount = MIN_BET
-		elif betAmmount > MAX_BET:
-			betAmmount = MAX_BET
-
-		if getWinnerHorse(horseRates) == 0:
-			prize = betAmmount * firstHorseRate
-			balance += prize
-		else:
-			balance -= betAmmount
-
-	return balance
-
+class CustomFormatter(argparse.ArgumentDefaultsHelpFormatter, argparse.RawTextHelpFormatter):
+	pass
 
 if __name__ == '__main__':
 
-	parser = argparse.ArgumentParser()
-
-	parser.add_argument('-b', '--balance', type=int, default=1000,
-		help='Starting balance for each run')
-
-	parser.add_argument('-r', '--runs', type=int, default=1,
-		help='Number of runs to simulate')
-
-	parser.add_argument('-i', '--iterations', type=int, default=100,
-		help='Number of iteration per run to do')
+	parser = argparse.ArgumentParser(
+		formatter_class=CustomFormatter
+	)
 
 	parser.add_argument('-t', '--test', action='store_true',
-		help='Do a test')
+		help='Do a test\n')
+
+	parser.add_argument('-b', '--balance', type=int, default=1000,
+		help='Starting balance for each run\n')
+
+	parser.add_argument('-r', '--runs', type=int, default=1,
+		help='Number of runs to simulate\n')
+
+	parser.add_argument('-i', '--iterations', type=int, default=100,
+		help='Number of iteration per run to do\n')
+
+	parser.add_argument('-s', '--strategy', type=int, default=0,
+		choices=range(len(Strategies)),
+		help='\n'.join([
+			f'[{i}] {f.__name__}:\n{inspect.cleandoc(f.__doc__)}\n'
+			for i, f in enumerate(Strategies)
+		]) + '\n')
 
 	args = parser.parse_args(sys.argv[1:])
 
 	if args.test == True:
-		rates = generateRandomRates()
+		rates = utils.generateRandomRates()
 		print(rates.tolist())
 
-		weights = getWeightsFromRates(rates)
+		weights = utils.getWeightsFromRates(rates)
 		print(weights.tolist())
 
 		exit()
 
-
 	total_balance = 0
 
 	def target(x):
-		return play_run(args.balance, args.iterations)
+		return play_run(args.balance, args.iterations, Strategies[args.strategy])
 
 	start = time.perf_counter()
 
@@ -127,7 +88,9 @@ if __name__ == '__main__':
 	print(f'\tTime per run : {elapsed_time / args.runs}\n')
 
 
-	expected_time = timedelta(seconds=args.iterations * SECONDS_PER_RUN)
+	print('Simulation average:')
+
+	expected_time = timedelta(seconds=args.iterations * utils.SECONDS_PER_RUN)
 
 	average_balance = int(total_balance / args.runs)
 	average_benefits = average_balance - args.balance
@@ -135,8 +98,9 @@ if __name__ == '__main__':
 	average_balance_per_hour = int(average_balance / (expected_time.total_seconds() / 3600))
 
 	print('Simulation average:')
+	print(f'\tStrategy        :  {Strategies[args.strategy].__name__}')
 	print(f'\tBalance         :  $ {average_balance:*>+,}')
 	print(f'\tBenefits        :  $ {average_benefits:*>+,}')
 	print(f'\tBenefits / Hour :  $ {average_balance_per_hour:*>+,}\n')
-	print(f'\tFailed          :  {total_fails / args.runs * 100 :.4f}%\n')
+	print(f'\tFailed          :  {total_fails / args.runs * 100 :.4f}% ({total_fails} / {args.runs}) \n')
 	print(f'\tTime            :  {expected_time}')
