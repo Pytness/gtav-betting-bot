@@ -7,7 +7,8 @@ import utils
 class __Strategies:
 
 	def default(self, balance: int, rates: np.ndarray, weights: np.ndarray) -> Bet:
-		'''Always bets on the horse with the highest probability to win and compensates
+		'''
+		Always bets on the horse with the highest probability to win and compensates
 		the lower probabilities by reducing the amount to bet:
 			# ...
 			sigma = horse_weight / max_horse_weight
@@ -15,6 +16,7 @@ class __Strategies:
 			# ...
 
 		'''
+
 		firstRate = rates[0]
 		firstWeight = weights[0]
 
@@ -24,7 +26,10 @@ class __Strategies:
 		return Bet(0, betAmmount)
 
 	def default_no_compensation(self, balance: int, rates: np.ndarray, weights: np.ndarray) -> Bet:
-		'''Same as default, but it does not compensate a lower probability.'''
+		'''
+		Same as default, but it does not compensate a lower probability.
+		'''
+
 		firstRate = rates[0]
 		firstWeight = weights[0]
 
@@ -33,9 +38,11 @@ class __Strategies:
 		return Bet(0, betAmmount)
 
 	def other(self, balance: int, rates: np.ndarray, weights: np.ndarray) -> Bet:
-		''' Randomly bets to the lower probability (but higher reward) horse.
+		'''
+		Randomly bets to the lower probability (but higher reward) horse.
 		Fallbacks to default.
 		'''
+
 		lastHorseWeight = weights[-1]
 		lastHorseMaxWeight = utils.MAX_HORSE_WEIGHTS[-1]
 
