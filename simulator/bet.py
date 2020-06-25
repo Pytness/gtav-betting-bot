@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 from collections import namedtuple
 from constants import MIN_BET, MAX_BET
 

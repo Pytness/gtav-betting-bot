@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 MIN_BET = 100
 MAX_BET = 10000
 
