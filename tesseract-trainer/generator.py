@@ -4,6 +4,7 @@ import random
 import string
 from PIL import Image, ImageFont, ImageDraw
 from collections import namedtuple
+import os
 
 FOLDER = 'training-data'
 
@@ -77,12 +78,14 @@ def generate_image():
 	return (image, boxes)
 
 
+
+if not os.path.isdir(FOLDER):
+	os.mkdir(FOLDER)
+
 for i in range(IMAGE_COUNT):
 	image, boxes = generate_image()
 
 	image.save(f'{FOLDER}/{LANG}.{FONTNAME}.exp{i}.png')
-	# image.show()
-
 
 	with open(f'{FOLDER}/{LANG}.{FONTNAME}.exp{i}.box', 'w') as boxfile:
 		for box in boxes:
